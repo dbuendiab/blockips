@@ -40,6 +40,13 @@ class Setup:
           de consultas al fichero de texto
         * Actualización del fichero blockips.conf a partir de la tabla blocked actual
 
+        Atributos públicos
+        lineas: int = Número de líneas adquiridas correctamente
+        info: list = Lista de errores
+
+        Funciones públicas
+        sql(frase, datos={}, param="tabla"): Ejecutor de consultas SQL
+        menu(): Menú interactivo
         """
 
     ## Comando para la inserción de registros de log en la tabla access ---- 
@@ -162,150 +169,152 @@ class Setup:
             __insert_line), de tal manera que podrían estar incluidas como 
             funciones internas de esta. TODO: probar la inclusión de las funciones
             """
+        ## ------------------------------------------------------------------
+        def __get_log_files(dias_filtro: int, ruta: str):
+            """ Esta función filtra los ficheros de log en función de su fecha.
+            Para ello, en vez de un bucle, usa la función de orden superior
+            map(), pasándole una función interna de filtro que es la que calcula
+            los días de cada fichero.
+            """ 
+            ahora = datetime.datetime.now()
+            log_files = glob.glob(ruta)
+
+            ## Función interna a __get_log_files ----
+            def func_filtro(file):
+                file_time_modif = datetime.datetime.fromtimestamp((os.path.getmtime(file)))
+                elapsed_days = (ahora - file_time_modif).days
+                return elapsed_days <= dias_filtro
+            
+            ## Aquí se usa la función que acabamos de crear ----
+            return filter(func_filtro, log_files)
+        ## ··································································
+        ## ------------------------------------------------------------------
+        def __get_file_lines(f: str) -> list:
+            """ Es un iterador que devuelve una línea cada vez.
+                Resuelve el tema de los ficheros comprimidos
+                """
+            if f.endswith(".gz"):
+                with gzip.open(f,'rt') as f:
+                    for line in f:
+                        yield line
+            else:
+                with open(f, 'rt') as f:
+                    for line in f:
+                        yield line 
+        ## ··································································
+        ## ------------------------------------------------------------------
+        def __tratamiento_linea(i: int, L: str) -> (dict, list):
+            """ Para cada línea, hace la captura de campos vía patrones regex
+                y devuelve un diccionario con todos ellos y una lista de líneas
+                erróneas.
+                """
+            match1 = self.__patron1.search(L)
+            match2 = self.__patron2.search(L)
+            output = {}
+            output['ilin'] = i
+            output['linea'] = L
+            errores = []
+            keys_bad = []
+            hay_error = False
+            for key in ('ipaddress', 'dateandtime', 'method', 'url', 'statuscode', 'bytessent', 'referer', 'useragent'):
+                try:
+                    output[key] = match1.group(key)
+                except AttributeError as _:
+                    hay_error = True
+                    keys_bad.append(key)
+            if hay_error:
+                hay_error = False
+                for key in ('ipaddress', 'dateandtime', 'encoded', 'statuscode', 'bytessent', 'referer', 'useragent'):
+                    try:
+                        output[key] = match2.group(key)
+                    except AttributeError as e:
+                        hay_error = True
+                        keys_bad.append(key)
+            if hay_error:
+                errores.append((L, keys_bad))
+            return output, errores
+        ## ··································································
+        ## ------------------------------------------------------------------
+        def __insert_line(reg: dict):
+            """Inserta el diccionario de campos obtenido de una línea
+                dentro de la tabla access, adaptando algunos campos
+                para su mejor procesamiento
+                """
+
+            ## Función interna a __insert_line ----
+            ## Observa que no lleva self (no es atributo del objeto)
+            ## ni los "dunder" (el doble subrayado, por lo mismo: el 
+            ## doble subrayado+self se sustituye internamente por un nombre
+            ## autogenerado: _Setup__apachelog2dt)
+            ## NOTA POSTERIOR: El doble subrayado funciona, si no hay self por medio
+            ## Lo dejo ahí porque me ayuda a visualizar que son funciones privadas ----
+            def __apachelog2dt(t):
+                import datetime
+                offset = int(t[-5:])
+                delta = datetime.timedelta(hours = offset / 100)
+                fmt = "%d/%b/%Y:%H:%M:%S"
+                dt1 = datetime.datetime.strptime(t[:-6], fmt)
+                dt1 -= delta
+                return dt1
+
+            ## ATENCIÓN: ESTO NO PUEDE EJECUTARSE DOS VECES SEGUIDAS SIN RECREAR acc_lines ANTES
+            ## PUESTO QUE EN EL PROCESO RETOCAMOS LOS DICCIONARIOS DE ESA LISTA Y LA SEGUNDA VEZ
+            ## YA NO RECONOCE EL CONTENIDO. SI QUIERES QUE SEA REPLICABLE, CREA UNA LISTA DE SALIDA NUEVA
+
+            try:
+                reg['ilin']        = int(reg['ilin'])
+                reg['dateandtime'] = __apachelog2dt(reg['dateandtime'])
+                reg['bytessent']   = int(reg['bytessent'])
+                reg['statuscode'] = int(reg['statuscode'])
+
+                if 'encoded' in reg.keys():
+                    reg['method'] ='----'
+                    reg['url'] = reg['encoded'][:20] + '...'
+                    reg['encoded'] = True
+                else:
+                    reg['encoded'] = False
+                    #reg['method'] =''      ## Ya viene bien y no hay que modificarlo
+                    #reg['url'] = ''
+
+                self.__cursor.execute(self.__sql_insert, reg)
+                self.__conexion.commit()
+            ## Este error es cuando hay una línea errónea y falla un campo. No debe abortar ----
+            except KeyError as e:
+                logging.error(repr(e))
+
+            ## El resto de errores si son de morirse (creo) ----
+            except Exception as e:
+                ## TODO: Esto debe dejar un aviso en el menú interactivo (y salir)
+                logging.error(repr(e))
+                raise e ## ¿Servirá esto?
+        ## ··································································
+        ## ··································································
+        ## ··································································
+
         logging.info("Recuperando ficheros de log...")
-        self.count = 0
+        self.lineas = 0
         self.info = []
         ## Aquí usamos __get_log_files ----
-        for f in self.__get_log_files(DIAS_FILTRO, RUTA_LOG_FILES):
+        for f in __get_log_files(DIAS_FILTRO, RUTA_LOG_FILES):
             countf = 0
             count_err = 0
             logging.info(f"Fichero: {f}")
             ## Aquí usamos __get_file_lines ----
-            for i, l in enumerate(self.__get_file_lines(f)):
+            for i, l in enumerate(__get_file_lines(f)):
                 ## Aquí el __tratamiento_linea ----
-                dicci, lista = self.__tratamiento_linea(i, l)
+                dicci, lista = __tratamiento_linea(i, l)
                 if lista: 
                     count_err += 1
                     logging.error("Línea mal formada")
                     for error in lista:
                         logging.error(error)
                 ## Aquí la inserción __insert_line ----
-                self.__insert_line(dicci)
-                self.count += 1
+                __insert_line(dicci)
+                self.lineas += 1
                 countf += 1
-            self.info.append({ 'fichero': f, 'filas': self.count, 'errores': count_err})
+            self.info.append({ 'fichero': f, 'filas': self.lineas, 'errores': count_err})
             logging.info(f"{countf} líneas en fichero {f}")
-        logging.info(f"Total líneas: {self.count}")
-
-## ------------------------------------------------------------------
-    def __get_log_files(self, dias_filtro: int, ruta: str):
-        """ Esta función filtra los ficheros de log en función de su fecha.
-           Para ello, en vez de un bucle, usa la función de orden superior
-           map(), pasándole una función interna de filtro que es la que calcula
-           los días de cada fichero.
-           """ 
-        ahora = datetime.datetime.now()
-        log_files = glob.glob(ruta)
-
-        ## Función interna a __get_log_files ----
-        def func_filtro(file):
-            file_time_modif = datetime.datetime.fromtimestamp((os.path.getmtime(file)))
-            elapsed_days = (ahora - file_time_modif).days
-            return elapsed_days <= dias_filtro
-        
-        ## Aquí se usa la función que acabamos de crear ----
-        return filter(func_filtro, log_files)
-
-## ------------------------------------------------------------------
-    def __get_file_lines(self, f: str) -> list:
-        """ Es un iterador que devuelve una línea cada vez.
-            Resuelve el tema de los ficheros comprimidos
-            """
-        if f.endswith(".gz"):
-            with gzip.open(f,'rt') as f:
-                for line in f:
-                    yield line
-        else:
-            with open(f, 'rt') as f:
-                for line in f:
-                    yield line 
-
-## ------------------------------------------------------------------
-    def __tratamiento_linea(self, i: int, L: str) -> (dict, list):
-        """ Para cada línea, hace la captura de campos vía patrones regex
-            y devuelve un diccionario con todos ellos y una lista de líneas
-            erróneas.
-            """
-
-        match1 = self.__patron1.search(L)
-        match2 = self.__patron2.search(L)
-        output = {}
-        output['ilin'] = i
-        output['linea'] = L
-        errores = []
-        keys_bad = []
-        hay_error = False
-        for key in ('ipaddress', 'dateandtime', 'method', 'url', 'statuscode', 'bytessent', 'referer', 'useragent'):
-            try:
-                output[key] = match1.group(key)
-            except AttributeError as _:
-                hay_error = True
-                keys_bad.append(key)
-        if hay_error:
-            hay_error = False
-            for key in ('ipaddress', 'dateandtime', 'encoded', 'statuscode', 'bytessent', 'referer', 'useragent'):
-                try:
-                    output[key] = match2.group(key)
-                except AttributeError as e:
-                    hay_error = True
-                    keys_bad.append(key)
-        if hay_error:
-            errores.append((L, keys_bad))
-        return output, errores
-
-## ------------------------------------------------------------------
-    def __insert_line(self, reg: dict):
-        """Inserta el diccionario de campos obtenido de una línea
-            dentro de la tabla access, adaptando algunos campos
-            para su mejor procesamiento
-            """
-
-        ## Función interna a __insert_line ----
-        ## Observa que no lleva self (no es atributo del objeto)
-        ## ni los "dunder" (el doble subrayado, por lo mismo: el 
-        ## doble subrayado+self se sustituye internamente por un nombre
-        ## autogenerado: _Setup__apachelog2dt)
-        ## NOTA POSTERIOR: El doble subrayado funciona, si no hay self por medio
-        ## Lo dejo ahí porque me ayuda a visualizar que son funciones privadas ----
-        def __apachelog2dt(t):
-            import datetime
-            offset = int(t[-5:])
-            delta = datetime.timedelta(hours = offset / 100)
-            fmt = "%d/%b/%Y:%H:%M:%S"
-            dt1 = datetime.datetime.strptime(t[:-6], fmt)
-            dt1 -= delta
-            return dt1
-
-        ## ATENCIÓN: ESTO NO PUEDE EJECUTARSE DOS VECES SEGUIDAS SIN RECREAR acc_lines ANTES
-        ## PUESTO QUE EN EL PROCESO RETOCAMOS LOS DICCIONARIOS DE ESA LISTA Y LA SEGUNDA VEZ
-        ## YA NO RECONOCE EL CONTENIDO. SI QUIERES QUE SEA REPLICABLE, CREA UNA LISTA DE SALIDA NUEVA
-
-        try:
-            reg['ilin']        = int(reg['ilin'])
-            reg['dateandtime'] = __apachelog2dt(reg['dateandtime'])
-            reg['bytessent']   = int(reg['bytessent'])
-            reg['statuscode'] = int(reg['statuscode'])
-
-            if 'encoded' in reg.keys():
-                reg['method'] ='----'
-                reg['url'] = reg['encoded'][:20] + '...'
-                reg['encoded'] = True
-            else:
-                reg['encoded'] = False
-                #reg['method'] =''      ## Ya viene bien y no hay que modificarlo
-                #reg['url'] = ''
-
-            self.__cursor.execute(self.__sql_insert, reg)
-            self.__conexion.commit()
-        ## Este error es cuando hay una línea errónea y falla un campo. No debe abortar ----
-        except KeyError as e:
-            logging.error(repr(e))
-
-        ## El resto de errores si son de morirse (creo) ----
-        except Exception as e:
-            ## TODO: Esto debe dejar un aviso en el menú interactivo (y salir)
-            logging.error(repr(e))
-            raise e ## ¿Servirá esto?
+        logging.info(f"Total líneas: {self.lineas}")
 
 ## ------------------------------------------------------------------
 ## ------------------------------------------------------------------
