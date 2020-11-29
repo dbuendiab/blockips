@@ -116,7 +116,7 @@ class Setup:
             entrando como errores.
             """
         logging.info("Estableciendo patrones regex...")
-        patron1 = """
+        patron1 = r"""
             (?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})    ## Una dirección IP
             \ -\ -\                                              ## Tres espacios con guiones intercalados
             \[(?P<dateandtime>.+)\]\                             ## Fecha [dd/mes/yyyy:hh:mm:ss +zzzz]
@@ -128,7 +128,7 @@ class Setup:
             (["](?P<referer>(\-)|(.+))["])\                      ## Referer "lo que sea" o "-"
             (["](?P<useragent>.+)["])                            ## User agent "lo que sea"
             """
-        patron2 = """
+        patron2 = r"""
             (?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})    ## Una dirección IP
             \ -\ -\                                              ## Tres espacios con guiones intercalados
             \[(?P<dateandtime>.+)\]\                             ## Fecha [dd/mes/yyyy:hh:mm:ss +zzzz]
@@ -227,7 +227,7 @@ class Setup:
                 for key in ('ipaddress', 'dateandtime', 'encoded', 'statuscode', 'bytessent', 'referer', 'useragent'):
                     try:
                         output[key] = match2.group(key)
-                    except AttributeError as e:
+                    except AttributeError as _:
                         hay_error = True
                         keys_bad.append(key)
             if hay_error:
