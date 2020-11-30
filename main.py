@@ -40,6 +40,7 @@ class Setup:
         * Añadir facilidades de edición: historial de comandos, edición multilínea, guardado
           de consultas al fichero de texto
         * Actualización del fichero blockips.conf a partir de la tabla blocked actual
+        * TODO: Un preprocesador de consultas SQL para escribir menos (SELECT *- agent, refe ...)
 
         Atributos públicos
         lineas: int = Número de líneas adquiridas correctamente
@@ -367,7 +368,7 @@ class Setup:
                 contador += 1
             except Exception as e:
                 logging.error(f"Error insertando IP {bip} en tabla 'blocked': {e}")
-        print("Insertadas {} IPs".format(contador))
+        logging.info("Insertadas {} IPs".format(contador))
 
 ## ------------------------------------------------------------------
 ## ------------------------------------------------------------------
@@ -399,56 +400,29 @@ class Setup:
 
 ## ------------------------------------------------------------------
 ## ------------------------------------------------------------------
-    ## Menú interactivo: TODO: 
-    ## * Que el menú se genere a partir de un fichero
-    ## * Que se recargue en cada iteración (así podría actualizarse sobre la marcha)
-    ## * Una estructura decente para el fichero de consultas ----
+    ## Menú interactivo:
+    ## * Se genera a partir de un fichero YAML
+    ## * Se recargue en cada iteración (así se actualizar sobre la marcha)
     def menu(self):
-        while True:
-            print()
-            print("MENU CONSULTAS")
-            print("==============")
-            print("1. Accesos por día")
-            print("2. sqlite_master (tablas y campos)")
-            print("3. Detalle accesos día más concurrido")
-            print("-----------------------------------")
-            s = input("Introduce frase SQL a ejecutar: ")
-            if s[0] in 'qQ': break
-            if s in ("1", "2", "3"):
-                frase = self.sql_frases[s]
-            else:
-                frase = s
-            try:
-                self.sql(frase)
-            except Exception as e:
-                print("Algún error en el SQL")
-                print(e)
+        from menu import Menu
+        main_menu = Menu()
 
-    ## TODO: generar esta estructura dinámicamente a partir de un fichero ----
-    sql_frases = {
-        "1": """
-            SELECT DATE(dateandtime) AS fecha, COUNT(*) AS num_accesos
-            FROM access
-            GROUP BY DATE(dateandtime)
-            """,
-        "2": """
-            SELECT * FROM sqlite_master
-            """,
-        "3": """
-            SELECT ipaddress, COUNT(*) AS accesos
-            FROM access
-            WHERE DATE(dateandtime) = (
-                SELECT DATE(dateandtime) AS fecha
-                FROM access
-                GROUP BY DATE(dateandtime)
-                ORDER BY COUNT(*) DESC
-                LIMIT 1)
-            GROUP BY ipaddress
-            HAVING accesos > 1
-            ORDER BY accesos DESC
-            LIMIT 100
-            """
-    }
+        while True:
+            self.__carga_blockips_conf()
+            main_menu.recargar_yaml()
+            main_menu.display()
+            opcion = main_menu.entrada()
+
+            if opcion == '.quit': 
+                break
+            else:
+                frase = opcion
+                try:
+                    self.sql(frase)
+                except Exception as e:
+                    error = f"Error en SQL: {e}"
+                    print(error)
+                    logging.error(error)
     
 ## ------------------------------------------------------------------
 

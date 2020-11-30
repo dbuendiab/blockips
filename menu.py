@@ -5,8 +5,13 @@ Features
 2 - Inicialización del menú mediante un diccionario o fichero
 
 Enlaces de documentación sobre YAML:
+
 https://pyyaml.org/wiki/PyYAMLDocumentation
-http://www.yamllint.com/      ## Un verificador de sintaxis en línea
+
+Verificador de sintaxis YAML en línea:
+
+http://www.yamllint.com/
+
 """
 
 ## TODO: Montar tests Unittest o algo para probar la entrada y la salida 
@@ -38,6 +43,12 @@ class Menu:
         ## Hacemos la lectura de la primera línea ----
         opcion = input()
 
+        ## Si no escribieron nada, leo las siguientes líneas ----
+        if opcion.strip() == '':
+            centinela = "" ## Fin de línea input multilínea ----
+            sql = "\n".join(iter(input, centinela))
+            return sql
+
         ## Si es [q]uit abandonamos ----
         if opcion[0] in 'qQ':
             return ".quit"
@@ -45,12 +56,6 @@ class Menu:
         ## Si es alguno de los comandos de la lista ----
         if opcion in self.__comandos:
             return list(filter(lambda x: x['clave'] == opcion, self.__sql_frases))[0]['sql']
-
-        ## Si no escribieron nada, leo las siguientes líneas ----
-        if opcion.strip() == '':
-            centinela = "" ## Fin de línea input multilínea ----
-            sql = "\n".join(iter(input, centinela))
-            return sql
 
         ## En todos los demas casos en que escriba algo, se entiende que será una frase SQL ----
         else:
@@ -60,9 +65,11 @@ class Menu:
             return sql
 
 
-x = Menu()
-while True:
-    x.display()
-    opc = x.entrada()
-    if opc == ".quit": break
-    print(opc)
+if __name__ == "__main__":
+    print("Este menú es el de menu.py, no el final")
+    x = Menu()
+    while True:
+        x.display()
+        opc = x.entrada()
+        if opc == ".quit": break
+        print(opc)

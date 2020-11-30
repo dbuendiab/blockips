@@ -12,3 +12,6 @@ y también explicadas en el doc del principio del código de *main.py*
 
 ### 2020-11-27
 * Cambio cadenas patrón añadiendo 'r' de raw para que no siga saliendo el error de todos los backslash en la expresión regular. La gracia es que sigue funcionando igual, pero ahora sin errores.
+### 2020-11-29
+* Carga de los datos de IPs bloqueadas del fichero blockips.conf a la tabla blocked de la base de datos.
+* Añadidos los ficheros independientes para gestión del menú.
