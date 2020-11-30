@@ -28,6 +28,7 @@ import prettytable
 
 DIAS_FILTRO = 7
 RUTA_LOG_FILES = "/var/log/nginx/access.log*"
+RUTA_BLOCKIPS_CONF = "/etc/nginx/conf.d/blockips.conf"
 
 class Setup:
     """ Esta clase descarga los ficheros de logs de DIAS_FILTRO días y los analiza,
@@ -65,6 +66,8 @@ class Setup:
         self.__create_database()
         self.__set_patterns()
         self.__tratamiento_ficheros()
+        self.__set_pattern_blockips_conf()
+        self.__carga_blockips_conf()
 
 ## ------------------------------------------------------------------
     def __create_database(self):
@@ -167,7 +170,7 @@ class Setup:
             ello un par de patrones regex. De esta función cuelgan las cuatro 
             siguientes (__get_log_files, __get_file_lines, __tratamiento_linea, 
             __insert_line), de tal manera que podrían estar incluidas como 
-            funciones internas de esta. TODO: probar la inclusión de las funciones
+            funciones internas de esta.
             """
         ## ------------------------------------------------------------------
         def __get_log_files(dias_filtro: int, ruta: str):
@@ -315,6 +318,56 @@ class Setup:
             self.info.append({ 'fichero': f, 'filas': self.lineas, 'errores': count_err})
             logging.info(f"{countf} líneas en fichero {f}")
         logging.info(f"Total líneas: {self.lineas}")
+
+## ------------------------------------------------------------------
+## ------------------------------------------------------------------
+    def __set_pattern_blockips_conf(self):
+        self.__pattern_blockips_conf = re.compile(r'\s+')
+
+## ------------------------------------------------------------------
+## ------------------------------------------------------------------
+    def __carga_blockips_conf(self):
+        """ Función para recuperar el contenido del fichero de IPs bloqueadas
+            /etc/nginx/conf.d/blockips.conf 
+            TODO: un mecanismo de lectura de la fecha de la última actualización
+            para impedir la recarga si no ha habido cambios en el fichero
+            TODO: lo mismo para los ficheros de log
+            """
+        logging.info("Recuperando fichero blockips.conf...")
+        with open(RUTA_BLOCKIPS_CONF, "r") as fp:
+            lineas = fp.readlines()
+
+        blocked_ips = [
+            self.__pattern_blockips_conf.split(L)[1].replace(';','') 
+            for L in lineas 
+            if L.startswith('deny')
+        ]
+        
+        ## Es posible que alguna IP esté repetida, así que uso set() para eliminarla y luego vuelvo a la list() ----
+        blocked_ips = list(set(blocked_ips))
+        logging.info("Encontradas {} IPs en blockips.conf".format(len(blocked_ips)))
+        
+        ## Vaciado de la tabla ----
+        sql_delete = "DELETE FROM blocked"
+        self.__cursor.execute(sql_delete)
+        self.__conexion.commit()
+
+        ## Insertar las IPs nuevas ---
+        sql_insert_block = '''
+
+        INSERT INTO blocked 
+        VALUES (?)
+
+        '''
+        contador = 0
+        for bip in blocked_ips:
+            try:
+                self.__cursor.execute(sql_insert_block, (bip,))
+                self.__conexion.commit()
+                contador += 1
+            except Exception as e:
+                logging.error(f"Error insertando IP {bip} en tabla 'blocked': {e}")
+        print("Insertadas {} IPs".format(contador))
 
 ## ------------------------------------------------------------------
 ## ------------------------------------------------------------------

@@ -1,0 +1,29 @@
+## TODO: Añadir consultas con el filtro blocked (como en el notebook)
+--- 
+- 
+  clave: "1"
+  nombre: "Accesos por día"
+  sql: |
+      SELECT DATE(dateandtime) AS fecha, COUNT(*) AS num_accesos
+      FROM access
+      GROUP BY DATE(dateandtime)
+- 
+  clave: "2"
+  nombre: "sqlite_master (tablas y campos)"
+  sql: "SELECT * FROM sqlite_master\n"
+- 
+  clave: "3"
+  nombre: "Detalle accesos día más concurrido"
+  sql: |
+      SELECT ipaddress, COUNT(*) AS accesos
+      FROM access
+      WHERE DATE(dateandtime) = (
+          SELECT DATE(dateandtime) AS fecha
+          FROM access
+          GROUP BY DATE(dateandtime)
+          ORDER BY COUNT(*) DESC
+          LIMIT 1)
+      GROUP BY ipaddress
+      HAVING accesos > 1
+      ORDER BY accesos DESC
+      LIMIT 100
