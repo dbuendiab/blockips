@@ -47,7 +47,7 @@ class Menu:
         if opcion.strip() == '':
             centinela = "" ## Fin de línea input multilínea ----
             sql = "\n".join(iter(input, centinela))
-            return sql
+            return (sql, None)
 
         ## Si es [q]uit abandonamos ----
         if opcion[0] in 'qQ':
@@ -55,21 +55,32 @@ class Menu:
 
         ## Si es alguno de los comandos de la lista ----
         if opcion in self.__comandos:
-            return list(filter(lambda x: x['clave'] == opcion, self.__sql_frases))[0]['sql']
+            comando = list(filter(lambda x: x['clave'] == opcion, self.__sql_frases))[0]
+            sql = comando['sql']
+            params = comando.get('params', None)
+            if params:
+                params = self.input_param(params)
+            return (sql, params)
 
         ## En todos los demas casos en que escriba algo, se entiende que será una frase SQL ----
         else:
             sql = opcion + "\n"
             centinela = "" ## Fin de línea input multilínea ----
             sql += "\n".join(iter(input, centinela))
-            return sql
+            return (sql, None)
 
+    def input_param(self, params: list):
+        outp = {}
+        for elem in params:
+            value = input("Introduce " +elem + ": ")    ## TODO: bucle para validar esta entrada
+            outp[elem] = value
+        return outp
 
 if __name__ == "__main__":
-    print("Este menú es el de menu.py, no el final")
     x = Menu()
     while True:
         x.display()
+        print("ATENCIÓN: Este menú es el de menu.py, no el final")
         opc = x.entrada()
         if opc == ".quit": break
         print(opc)

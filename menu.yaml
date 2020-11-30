@@ -27,3 +27,46 @@
       HAVING accesos > 1
       ORDER BY accesos DESC
       LIMIT 100
+-
+  clave: "4"
+  nombre: "IPs más persistentes (no bloqueadas)"
+  sql: |
+      SELECT ipaddress, 
+          COUNT(*) AS veces, 
+          COUNT(DISTINCT DATE(dateandtime)) AS dias,
+          MAX(dateandtime) AS last,
+          MIN(dateandtime) AS first
+      FROM access
+      WHERE ipaddress NOT IN (SELECT ipaddress FROM blocked)
+      GROUP BY ipaddress
+      HAVING COUNT(*) > 2
+      ORDER BY 2 DESC
+-
+  clave: "5"
+  nombre: "Historial de una IP"
+  params: ["ipaddress"]
+  sql: |
+      SELECT dateandtime AS dt, method, substr(url, 1, 65), statuscode, bytessent
+      FROM access
+      WHERE ipaddress = :ipaddress
+      ORDER BY dt 
+      LIMIT 100
+-
+  clave: "6"
+  nombre: "URLs que el servidor aceptó (statuscode<>4xx)"
+  sql: |
+      SELECT method, SUBSTR(url,1,95) AS url, COUNT(*) AS n, statuscode AS sc
+      FROM access
+      WHERE sc NOT IN (404, 403, 400, 405)
+      AND ipaddress NOT IN (SELECT ipaddress FROM blocked)
+      GROUP BY method, url, statuscode
+      ORDER BY sc, method, url
+-
+  clave: "7"
+  nombre: "Entradas con useragent LIKE algo"
+  params: ["useragent_fragment"]
+  sql: |
+      SELECT ipaddress, dateandtime, method, SUBSTR(url, 1, 40) AS url, statuscode, SUBSTR(useragent, 1, 85) AS Agente 
+      FROM access 
+      WHERE useragent LIKE '%' || :useragent_fragment || '%'
+      ORDER BY Agente

@@ -387,7 +387,10 @@ class Setup:
         imprime = 'tabla' in parametros
         leftalign = 'lalign' in parametros
     
-        self.__cursor.execute(cell, data)
+        if data:
+            self.__cursor.execute(cell, data)
+        else:
+            self.__cursor.execute(cell)
         if self.__cursor:
             if imprime:
                 x = prettytable.from_db_cursor(self.__cursor)
@@ -416,9 +419,9 @@ class Setup:
             if opcion == '.quit': 
                 break
             else:
-                frase = opcion
+                frase, data = opcion
                 try:
-                    self.sql(frase)
+                    self.sql(frase, data)
                 except Exception as e:
                     error = f"Error en SQL: {e}"
                     print(error)
