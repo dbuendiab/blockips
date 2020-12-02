@@ -2,6 +2,12 @@
 Proyecto de control de acceso a la web mediante seguimiento del fichero access.log
 La idea es examinar el fichero cada X minutos (vía crontab: entre 1 y 5 minutos) y
 actualizar la lista de IPs bloqueadas en el fichero /etc/nginx/conf.d/blockips.conf
+
+Próxima gran modificación: mecanismo de seguimiento de la fecha de access.log y
+blockip.conf. Sólo entrar al proceso si cambió la fecha del access.log, y solo
+reiniciar el servidor si cambió el fichero blockip.conf.
+
+El reinicio se hace con un crontab programado para el momento actual
 """
 import logging
 
