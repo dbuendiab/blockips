@@ -70,3 +70,16 @@
       FROM access 
       WHERE useragent LIKE '%' || :useragent_fragment || '%'
       ORDER BY Agente
+- 
+  clave: "8"
+  nombre: "Entradas de un día dado"
+  params: ["dateandtime"]
+  sql: |
+      SELECT a.ipaddress, CASE WHEN b.ipaddress IS NOT NULL THEN 'X' ELSE '' END AS X,
+             a.dateandtime, a.method, SUBSTR(a.url, 1, 40) AS url, a.statuscode, SUBSTR(a.useragent, 1, 60) AS Agente 
+      FROM access AS a
+      LEFT JOIN blocked AS b
+      ON a.ipaddress = b.ipaddress
+      WHERE DATE(a.dateandtime) = :dateandtime
+      ORDER BY a.dateandtime ASC
+      LIMIT 100
