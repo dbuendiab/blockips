@@ -26,8 +26,9 @@ class Logic:
             ORDER BY date
         """, (start_time,))
         lista_ips = rs.fetchall()
-        for r in lista_ips:
-            logging.info("%s con URL tipo %s", r[0], r[1])
+        ## Suprimo esta salida por el exceso de salida en el log
+        #for r in lista_ips:
+        #    logging.info("%s con URL tipo %s", r[0], r[1])
         logging.info("Insertando %s IPs en la tabla blocked...", len(lista_ips))
         self.db.insert_block(lista_ips)
         logging.info("Tabla blocked actualizada")
