@@ -3,7 +3,7 @@ import re
 
 patrones = [
     ## Línea normal (method-url)
-"""
+r"""
 (?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})    ## Una dirección IP
 \ -\ (?P<user>.+)\                                   ## Tres espacios con guión y usuario (opcional: normalmente un guión)
 \[(?P<dateandtime>.+)\]\                             ## Fecha [dd/mes/yyyy:hh:mm:ss +zzzz]
@@ -17,7 +17,7 @@ patrones = [
 
 """,
     ## Línea ENCODED
-"""
+r"""
 (?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})    ## Una dirección IP
 \ -\ (?P<user>.+)\                                   ## Tres espacios con guión y usuario (opcional: normalmente un guión)
 \[(?P<dateandtime>.+)\]\                             ## Fecha [dd/mes/yyyy:hh:mm:ss +zzzz]
@@ -90,7 +90,7 @@ class ParseLog():
         for key in ('ipaddress', 'user', 'dateandtime', 'method', 'url', 'statuscode', 'bytessent', 'referer', 'useragent'):
             try:
                 output[key] = match1.group(key)
-            except AttributeError as e:
+            except AttributeError:
                 hay_error = True
                 keys_bad.append(key)
         if hay_error:
@@ -98,7 +98,7 @@ class ParseLog():
             for key in ('ipaddress', 'user', 'dateandtime', 'encoded', 'statuscode', 'bytessent', 'referer', 'useragent'):
                 try:
                     output[key] = match2.group(key)
-                except AttributeError as e:
+                except AttributeError:
                     hay_error = True
                     keys_bad.append(key)
         if hay_error:
