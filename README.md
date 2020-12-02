@@ -14,7 +14,6 @@ He creado el script *m3* en /root/bin para poder invocarlo directamente según e
 Quedan cosas por hacer (TODO) que están distribuidas por el código 
 y también explicadas en el doc del principio del código de *main.py*
 
-
 ## HISTORIAL MODIFICACIONES
 
 ### 2020-11-27
@@ -23,4 +22,6 @@ y también explicadas en el doc del principio del código de *main.py*
 * Carga de los datos de IPs bloqueadas del fichero blockips.conf a la tabla blocked de la base de datos.
 * Añadidos los ficheros independientes para gestión del menú.
 ### 2020-11-30
-* Añadir la opción **params** a las consultas vía YAML.
+* Añadir la opción **params** a las consultas vía YAML. 
+### 2020-12-02
+* Cambiado el sistema crontab: monitorizo el access.log cada minuto. Si hay cambios, procede a analizar el fichero para descubrir las IPs de los malos. Caso de que haya novedades, actualizo el fichero blockips.conf y reinicio el servidor Nginx.

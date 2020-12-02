@@ -4,7 +4,7 @@ import database
 class Logic:
     "Operaciones para el bloqueo de direcciones IP a partir de la base de datos"
 
-    def __init__(self, db: database.DB, ruta_blockips_conf):
+    def __init__(self, db: database.DB, ruta_blockips_conf: str) -> bool:
         "Recibe como parámetro la base de datos (previamente abierta) y ren"
         logging.info("Abriendo módulo de lógica...")
         self.db = db
@@ -49,5 +49,12 @@ class Logic:
             s += "deny " + x[0].rjust(15) + "; ## " + x[2] + " - " + x[1][:80] + ("..." if len(x[1]) > 80 else "") + '\n'
 
         ## He preferido recrear el fichero cada vez ----
-        open(self.rbc, "w").write(s)
-        logging.info("Fichero blockips.conf actualizado")
+        with open(self.rbc, "r") as fp:
+            s_old = fp.read()
+        if s != s_old:
+            open(self.rbc, "w").write(s)
+            logging.info("Fichero blockips.conf actualizado")
+            return True
+        else:
+            logging.info("Fichero blockips.conf no tuvo cambios")
+            return False

@@ -10,10 +10,13 @@ reiniciar el servidor si cambió el fichero blockip.conf.
 El reinicio se hace con un crontab programado para el momento actual
 """
 import logging
+import os
+import sys
 
 import parselog
 import database
 import logic
+import watcher
 
 RUTA_ACCESS_LOG = "/var/log/nginx/access.log"
 RUTA_DB = "/home/clouding/blockips/blockips.db"
@@ -50,7 +53,13 @@ def load_log_data():
     ## Una vez guardados los registros, se necesita implementar un módulo de inteligencia
     ## para procesar las entradas, haciendo los distintos procesos y escribiendo en blockips.conf ----
     L.bloquear_4xx('2000-01-01')    ## La fecha es un problema - igual hay que redefinir todo (hacer tablas temporales para comparar antes de insert)
-    L.actualizar_blockips_conf()
+    hay_cambios_en_blockips_conf = L.actualizar_blockips_conf()
+
+    ## Si hubo cambios, reiniciar el servidor ----
+    if hay_cambios_en_blockips_conf:
+        logging.info("Reiniciando servidor Nginx...")
+        os.system("/usr/sbin/nginx -s reload")
+
 
     logging.info("Fin de la ejecución")
 
@@ -64,12 +73,17 @@ def s(sql):
         print(x)
 
 
+def salir(s: str):
+    logging.info(s)
+    sys.exit(0)
+
 if __name__ == '__main__':
+    w = watcher.Watcher(RUTA_ACCESS_LOG)
     init_log()
+    if not w.hay_cambios():
+        salir("Sin cambios en access.log")
     init_objects()
     load_log_data()
 else:
     init_objects()
-
-    
     #s("SELECT COUNT(*) FROM access")
