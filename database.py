@@ -48,7 +48,7 @@ def apachelog2dt(t):
     return dt1
 
 class DB:
-    "Operaciones con la base de datos de accesos y bloqueos"
+    "Operaciones DE INSERCION DE REGISTROS con la base de datos de accesos y bloqueos"
 
     def __init__(self, database=RUTA_DB):
         "Abre la base de datos y crea las tablas access y blocked, si no existen"
@@ -60,7 +60,7 @@ class DB:
         self.con.commit()
 
         ## Esta variable servirá para consultar los registros de hoy ----
-        self.start_time = datetime.datetime.now()
+        self.start_time = datetime.date.today()
 
         logging.info("Base de datos abierta")
 

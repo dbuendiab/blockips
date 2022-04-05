@@ -151,8 +151,9 @@ class Setup:
             (?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})    ## Una dirección IP
             \ -\ (?P<user>.+)\                                   ## Tres espacios con guión y usuario
             \[(?P<dateandtime>.+)\]\                             ## Fecha [dd/mes/yyyy:hh:mm:ss +zzzz]
-            ((["](?P<encoded>.*?))["])\                          ## Caso en que no hay method+url
-                                                                 ## puede ser un encoded o también ""
+            ((\"(?P<method>\w+)\ )                               ## GET, POST, CONNECT, HEAD. Con espacio al final
+            (?P<url>.*)\ (http\/[12]\.[01]"))\                   ## Una URL (cualquier cosa) y el HTTP/1.1 o 2.0. Un espacio
+                                                                 ## En mi opinión, antes de HTTP vendría un espacio (igual se lo come el .+)
             (?P<statuscode>\d{3})\                               ## Status code, tres dígitos. Espacio
             (?P<bytessent>\d+)\                                  ## Bytes enviados, dígitos en general. Espacio
             (["](?P<referer>(\-)|(.+))["])\                      ## Referer "lo que sea" o "-"
@@ -224,27 +225,29 @@ class Setup:
             output['linea'] = L
             errores = []
             keys_bad = []
-            hay_error = False
-            for key in ('ipaddress', 'dateandtime', 'method', 'url', 'statuscode', 'bytessent', 'referer', 'useragent'):
-                try:
-                    output[key] = match1.group(key)
-                except AttributeError as _:
-                    hay_error = True
-                    keys_bad.append(key)
-            if hay_error:
+            hay_error = True
+            if match1:
+                hay_error = False
+                for key in ('ipaddress', 'dateandtime', 'method', 'url', 'statuscode', 'bytessent', 'referer', 'useragent'):
+                    try:
+                        output[key] = match1.group(key)
+                    except (AttributeError, IndexError) as _:
+                        hay_error = True
+                        keys_bad.append(key)
+            elif match2:
                 hay_error = False
                 for key in ('ipaddress', 'dateandtime', 'encoded', 'statuscode', 'bytessent', 'referer', 'useragent'):
                     try:
                         output[key] = match2.group(key)
-                    except AttributeError as _:
+                    except (AttributeError, IndexError) as _:
                         hay_error = True
                         keys_bad.append(key)
-            if hay_error:
+            elif match3:
                 hay_error = False
                 for key in ('ipaddress', 'user', 'dateandtime', 'method', 'url', 'statuscode', 'bytessent', 'referer', 'useragent'):
                     try:
                         output[key] = match3.group(key)
-                    except AttributeError as _:
+                    except (AttributeError, IndexError) as _:
                         hay_error = True
                         keys_bad.append(key)
 
@@ -322,6 +325,8 @@ class Setup:
             logging.info(f"Fichero: {f}")
             ## Aquí usamos __get_file_lines ----
             for i, l in enumerate(__get_file_lines(f)):
+                dicci = {}
+                lista = []
                 ## Aquí el __tratamiento_linea ----
                 dicci, lista = __tratamiento_linea(i, l)
                 ## La lista viene si hay errores en la línea ----

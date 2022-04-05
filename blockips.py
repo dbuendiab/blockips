@@ -53,7 +53,7 @@ def load_log_data():
 
     ## Una vez guardados los registros, se necesita implementar un módulo de inteligencia
     ## para procesar las entradas, haciendo los distintos procesos y escribiendo en blockips.conf ----
-    L.bloquear_4xx('2000-01-01')    ## La fecha es un problema - igual hay que redefinir todo (hacer tablas temporales para comparar antes de insert)
+    L.bloquear_urls()    
     hay_cambios_en_blockips_conf = L.actualizar_blockips_conf()
 
     ## Si hubo cambios, reiniciar el servidor ----

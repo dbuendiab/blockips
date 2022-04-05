@@ -1,5 +1,6 @@
 import logging
 import database
+import datetime
 
 class Logic:
     "Operaciones para el bloqueo de direcciones IP a partir de la base de datos"
@@ -18,20 +19,22 @@ class Logic:
         self.commit = db.con.commit     ## Abreviatura de la función ----
 
     ## TODO: eliminar este bloqueo por código HTTP y sustituirlo por URLs maliciosas
-    def bloquear_4xx(self, start_time=None):
-        logging.info("IPs con statuscode 4xx")
-        if not start_time:
+    def bloquear_urls(self, days_ago=7):
+        logging.info("IPs con URLs maliciosas")
+        ## Una semana por defecto
+        start_time = datetime.datetime.today() - datetime.timedelta(days=days_ago)
+        if not days_ago:
             start_time = self.start_time
         rs = self.ex("""
             SELECT ipaddress, MAX(url) AS url, DATE(MAX(dateandtime)) AS date 
             FROM access 
-            -- WHERE statuscode IN (400, 403, 404, 499) AND dateandtime > ?
-            WHERE url LIKE '%wp-admin%' 
+            WHERE (url LIKE '%wp-admin%' 
                 OR url LIKE '/.env%' 
                 OR url = '/boaform/admin/formLogin'
                 OR url LIKE '/config/getuser%'
-                OR url LIKE '/wp-login.php'
-                OR url LIKE '/phpmyAdmin%'
+                OR url LIKE '/wp-login.php%'
+                OR url LIKE '/phpmyAdmin%')
+                 AND dateandtime > ?
             GROUP BY ipaddress
             ORDER BY date
         """, (start_time,))
