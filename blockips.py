@@ -19,9 +19,10 @@ import logic
 import watcher
 
 RUTA_ACCESS_LOG = "/var/log/nginx/access.log"
+RUTA_BLOCKIPS_CONF = "/etc/nginx/conf.d/blockips.conf"
+
 RUTA_DB = "/home/clouding/blockips/blockips.db"
 RUTA_LOG = "/home/clouding/blockips/blockips.log"
-RUTA_BLOCKIPS_CONF = "/etc/nginx/conf.d/blockips.conf"
 
 def init_log():
     ## Configuración de logging ----

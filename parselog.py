@@ -34,7 +34,7 @@ r"""
 RUTA_ACCESS_LOG = "/var/log/nginx/access.log"
 
 class ParseLog():
-    "Toma el fichero de log y lo convierte en una lista de diccionarios"
+    "Toma el fichero access.log y lo convierte en una lista de diccionarios"
 
     def __init__(self, log_file=RUTA_ACCESS_LOG):
         "Realiza todo el proceso. Parámetro opcional: la ruta del fichero de log"
@@ -81,15 +81,15 @@ class ParseLog():
         ## hacerlo de otra manera ----
         match1 = self.regexs[0].search(L)
         match2 = self.regexs[1].search(L)
-        output = {}
-        output['ilin'] = i
-        output['linea'] = L
+        diccionario = {}
+        diccionario['ilin'] = i
+        diccionario['linea'] = L
         errores = []
         keys_bad = []
         hay_error = False
         for key in ('ipaddress', 'user', 'dateandtime', 'method', 'url', 'statuscode', 'bytessent', 'referer', 'useragent'):
             try:
-                output[key] = match1.group(key)
+                diccionario[key] = match1.group(key)
             except AttributeError:
                 hay_error = True
                 keys_bad.append(key)
@@ -97,23 +97,23 @@ class ParseLog():
             hay_error = False
             for key in ('ipaddress', 'user', 'dateandtime', 'encoded', 'statuscode', 'bytessent', 'referer', 'useragent'):
                 try:
-                    output[key] = match2.group(key)
+                    diccionario[key] = match2.group(key)
                 except AttributeError:
                     hay_error = True
                     keys_bad.append(key)
         if hay_error:
             errores.append((i, L, keys_bad))
-        return output, errores
+        return diccionario, errores
 
 
 if __name__ == '__main__':
     f_lines = open(RUTA_ACCESS_LOG, "r").read().splitlines()
     PL = ParseLog()
     for i, linea in enumerate(f_lines):
-        o, e = PL.parse_linea(i, linea)
-        print(o.keys())
+        diccionario, errores = PL.parse_linea(i, linea)
+        print(diccionario.keys())
         print()
-        print(o)
+        print(diccionario)
         print()
-        print(e)
+        print(errores)
         print()

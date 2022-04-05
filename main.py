@@ -26,6 +26,9 @@ import datetime
 import gzip
 import prettytable
 
+## Gestión del menú interactivo (basado en el fichero menu.yaml) ----
+import menu
+
 DIAS_FILTRO = 7
 RUTA_LOG_FILES = "/var/log/nginx/access.log*"
 RUTA_BLOCKIPS_CONF = "/etc/nginx/conf.d/blockips.conf"
@@ -54,7 +57,7 @@ class Setup:
     ## Comando para la inserción de registros de log en la tabla access ---- 
     __sql_insert = '''
         INSERT INTO access 
-        VALUES (:ipaddress, :dateandtime, :method, :url, :statuscode, :bytessent, :referer, :useragent, :encoded)
+        VALUES (:ipaddress, :user, :dateandtime, :method, :url, :statuscode, :bytessent, :referer, :useragent, :encoded)
         '''
 
     ## Crea la base de datos y carga los datos de los archivos de log en la tabla ----
@@ -79,6 +82,7 @@ class Setup:
         logging.info("Creando base de detos...")
         types = {
             'ipaddress': 'text',
+            'user': 'text',
             'dateandtime': 'datetime',
             'method': 'text',
             'url': 'text',
@@ -91,7 +95,7 @@ class Setup:
 
         ## Tabla access ----
         sql = "CREATE TABLE access ("
-        for key in ('ipaddress', 'dateandtime', 'method', 'url', 'statuscode', 'bytessent', 'referer', 'useragent', 'encoded'):
+        for key in ('ipaddress', 'user', 'dateandtime', 'method', 'url', 'statuscode', 'bytessent', 'referer', 'useragent', 'encoded'):
             sql += '\n' + key + ' ' + types[key] + ','
         sql = sql[:-1]
         sql += ')'
@@ -143,17 +147,17 @@ class Setup:
             (["](?P<referer>(\-)|(.+))["])\                      ## Referer "lo que sea" o "-"
             (["](?P<useragent>.+)["])                            ## User agent "lo que sea"
             """
-        # patron3 = """
-            #     (?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})    ## Una dirección IP
-            #     \ -\ (?P<user>.+)\                                   ## Tres espacios con guión y usuario
-            #     \[(?P<dateandtime>.+)\]\                             ## Fecha [dd/mes/yyyy:hh:mm:ss +zzzz]
-            #     ((["](?P<encoded>.*?))["])\                          ## Caso en que no hay method+url
-            #                                                          ## puede ser un encoded o también ""
-            #     (?P<statuscode>\d{3})\                               ## Status code, tres dígitos. Espacio
-            #     (?P<bytessent>\d+)\                                  ## Bytes enviados, dígitos en general. Espacio
-            #     (["](?P<referer>(\-)|(.+))["])\                      ## Referer "lo que sea" o "-"
-            #     (["](?P<useragent>.+)["])                            ## User agent "lo que sea"
-            #     """
+        patron3 = r"""
+            (?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})    ## Una dirección IP
+            \ -\ (?P<user>.+)\                                   ## Tres espacios con guión y usuario
+            \[(?P<dateandtime>.+)\]\                             ## Fecha [dd/mes/yyyy:hh:mm:ss +zzzz]
+            ((["](?P<encoded>.*?))["])\                          ## Caso en que no hay method+url
+                                                                 ## puede ser un encoded o también ""
+            (?P<statuscode>\d{3})\                               ## Status code, tres dígitos. Espacio
+            (?P<bytessent>\d+)\                                  ## Bytes enviados, dígitos en general. Espacio
+            (["](?P<referer>(\-)|(.+))["])\                      ## Referer "lo que sea" o "-"
+            (["](?P<useragent>.+)["])                            ## User agent "lo que sea"
+            """
         
         ## Función interna para compilar patrones. Sólo se usa aquí, por eso la hago interna ----
         def __create_pattern(regex_str):
@@ -162,7 +166,7 @@ class Setup:
         ## Los atributos que se usarán en el tratamiento de líneas se guardan aquí ----
         self.__patron1 = __create_pattern(patron1)
         self.__patron2 = __create_pattern(patron2)
-        ## self.__patron3 = __create_pattern(patron3)
+        self.__patron3 = __create_pattern(patron3)
 
 ## ------------------------------------------------------------------
     def __tratamiento_ficheros(self):
@@ -207,13 +211,14 @@ class Setup:
                         yield line 
         ## ··································································
         ## ------------------------------------------------------------------
-        def __tratamiento_linea(i: int, L: str) -> (dict, list):
+        def __tratamiento_linea(i: int, L: str) -> 'tuple(dict, list)':
             """ Para cada línea, hace la captura de campos vía patrones regex
                 y devuelve un diccionario con todos ellos y una lista de líneas
                 erróneas.
                 """
             match1 = self.__patron1.search(L)
             match2 = self.__patron2.search(L)
+            match3 = self.__patron3.search(L)
             output = {}
             output['ilin'] = i
             output['linea'] = L
@@ -235,7 +240,16 @@ class Setup:
                         hay_error = True
                         keys_bad.append(key)
             if hay_error:
-                errores.append((L, keys_bad))
+                hay_error = False
+                for key in ('ipaddress', 'user', 'dateandtime', 'method', 'url', 'statuscode', 'bytessent', 'referer', 'useragent'):
+                    try:
+                        output[key] = match3.group(key)
+                    except AttributeError as _:
+                        hay_error = True
+                        keys_bad.append(key)
+
+            if hay_error:
+                errores.append((L, list(set(keys_bad))))  ## Eliminar duplicados en lista bad keys en main.log
             return output, errores
         ## ··································································
         ## ------------------------------------------------------------------
@@ -271,6 +285,9 @@ class Setup:
                 reg['bytessent']   = int(reg['bytessent'])
                 reg['statuscode'] = int(reg['statuscode'])
 
+                if 'user' not in reg.keys():
+                    reg['user'] ='-'
+
                 if 'encoded' in reg.keys():
                     reg['method'] ='----'
                     reg['url'] = reg['encoded'][:20] + '...'
@@ -290,7 +307,7 @@ class Setup:
             except Exception as e:
                 ## TODO: Esto debe dejar un aviso en el menú interactivo (y salir)
                 logging.error(repr(e))
-                raise e ## ¿Servirá esto?
+                # raise e ## ¿Servirá esto?
         ## ··································································
         ## ··································································
         ## ··································································
@@ -307,6 +324,7 @@ class Setup:
             for i, l in enumerate(__get_file_lines(f)):
                 ## Aquí el __tratamiento_linea ----
                 dicci, lista = __tratamiento_linea(i, l)
+                ## La lista viene si hay errores en la línea ----
                 if lista: 
                     count_err += 1
                     logging.error("Línea mal formada")
@@ -407,8 +425,7 @@ class Setup:
     ## * Se genera a partir de un fichero YAML
     ## * Se recargue en cada iteración (así se actualizar sobre la marcha)
     def menu(self):
-        from menu import Menu
-        main_menu = Menu()
+        main_menu = menu.Menu()
 
         while True:
             self.__carga_blockips_conf()

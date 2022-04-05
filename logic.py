@@ -5,7 +5,10 @@ class Logic:
     "Operaciones para el bloqueo de direcciones IP a partir de la base de datos"
 
     def __init__(self, db: database.DB, ruta_blockips_conf: str) -> bool:
-        "Recibe como parámetro la base de datos (previamente abierta) y ren"
+        """Recibe como parámetro la base de datos (previamente abierta) 
+        y la ruta del fichero de bloqueo, que se actualiza aquí en base
+        a los datos de la tabla blocked."""
+
         logging.info("Abriendo módulo de lógica...")
         self.db = db
         self.rbc = ruta_blockips_conf
@@ -14,6 +17,7 @@ class Logic:
         self.cursor = db.con.cursor()   ## Objeto cursor ----
         self.commit = db.con.commit     ## Abreviatura de la función ----
 
+    ## TODO: eliminar este bloqueo por código HTTP y sustituirlo por URLs maliciosas
     def bloquear_4xx(self, start_time=None):
         logging.info("IPs con statuscode 4xx")
         if not start_time:
@@ -21,7 +25,13 @@ class Logic:
         rs = self.ex("""
             SELECT ipaddress, MAX(url) AS url, DATE(MAX(dateandtime)) AS date 
             FROM access 
-            WHERE statuscode IN (400, 403, 404, 499) AND dateandtime > ?
+            -- WHERE statuscode IN (400, 403, 404, 499) AND dateandtime > ?
+            WHERE url LIKE '%wp-admin%' 
+                OR url LIKE '/.env%' 
+                OR url = '/boaform/admin/formLogin'
+                OR url LIKE '/config/getuser%'
+                OR url LIKE '/wp-login.php'
+                OR url LIKE '/phpmyAdmin%'
             GROUP BY ipaddress
             ORDER BY date
         """, (start_time,))
@@ -44,7 +54,7 @@ class Logic:
             #  (porque he probado una de las URL malas y me ha anotado en la blacklist)
             #  Pasados unos días dejará de tenerme en los logs, pero entretanto cada vez
             #  que se actualiza la lista se jode la marrana.
-            if x[0] == '31.4.207.198':
+            if x[0].startswith('31.4.') or x[0].startswith('77.211.'):
                 continue
 
             s += "deny " + x[0].rjust(15) + "; ## " + x[2] + " - " + x[1][:80] + ("..." if len(x[1]) > 80 else "") + '\n'

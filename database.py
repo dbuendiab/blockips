@@ -37,6 +37,7 @@ sql2insert = """
 INSERT OR REPLACE INTO blocked
 VALUES (:ipaddress, :url, :date)
 """
+
 def apachelog2dt(t):
     "Convierte una fecha de log '07/Sep/2020:06:52:03 +0000' en datetime descontando el offset"
     offset = int(t[-5:])
