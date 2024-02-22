@@ -18,19 +18,29 @@ class Logic:
         self.cursor = db.con.cursor()   ## Objeto cursor ----
         self.commit = db.con.commit     ## Abreviatura de la función ----
 
-    ## TODO: eliminar este bloqueo por código HTTP y sustituirlo por URLs maliciosas
     def bloquear_urls(self, days_ago=7):
-        logging.info("IPs con URLs maliciosas")
+        '''
+        Esta función consulta la tabla access de blockips.db (sqlite) para obtener ips
+        que contengan URLs maliciosas, por un lado, e ips con un número alto de errores 
+        http 4xx. El número de errores está hardwired a 50 dentro de la consulta SQL, se
+        puede extraer como parámetro pero no creo que merezca la pena
+        '''
+        logging.info("IPs con URLs maliciosas y códigos 4xx")
         ## Una semana por defecto
         start_time = datetime.datetime.today() - datetime.timedelta(days=days_ago)
         if not days_ago:
             start_time = self.start_time
+
+        # Esta es la versión previa de la consulta, que no incluía la parte http
+        # Se deja comentada por claridad a la hora de entender los cambios
+        '''
         rs = self.ex("""
             SELECT ipaddress, MAX(url) AS url, DATE(MAX(dateandtime)) AS date 
             FROM access 
             WHERE (url LIKE '%wp-admin%' 
                 OR url LIKE '/.env%' 
                 OR url = '/boaform/admin/formLogin'
+                OR url LIKE '/Autodiscover%'
                 OR url LIKE '/config/getuser%'
                 OR url LIKE '/wp-login.php%'
                 OR url LIKE '/phpmyAdmin%')
@@ -38,6 +48,39 @@ class Logic:
             GROUP BY ipaddress
             ORDER BY date
         """, (start_time,))
+        '''
+
+        # La nueva consulta incluye la anterior unida a la que cuenta códigos http
+        # Podría mejorarse haciendo una UNION sólo de las ipaddress, y en todo caso
+        # usar esta lista para obtener los campos url y date (ahora puede darse el
+        # caso de tener una ip repetida porque salga en las dos consultas, pero no sé
+        # si eso será un problema, creo que no)
+        rs = self.ex("""
+            SELECT ipaddress, MAX(url) AS url, DATE(MAX(dateandtime)) AS date 
+            FROM access 
+            WHERE (url LIKE '%wp-admin%' 
+                OR url LIKE '/.env%' 
+                OR url = '/boaform/admin/formLogin'
+                OR url LIKE '/Autodiscover%'
+                OR url LIKE '/config/getuser%'
+                OR url LIKE '/wp-login.php%'
+                OR url LIKE '/phpmyAdmin%'
+                     )
+                 AND dateandtime > ?
+            GROUP BY ipaddress
+
+            UNION
+
+            SELECT ipaddress, MAX(url) AS url, DATE(MAX(dateandtime)) AS date 
+            FROM access 
+            WHERE dateandtime > ?
+            GROUP BY ipaddress
+            HAVING SUM(CASE WHEN statuscode >=400 AND statuscode <= 499 THEN 1 ELSE 0 END) > 50
+
+            ORDER BY date
+        """, (start_time, start_time,))
+
+        
         lista_ips = rs.fetchall()
         ## Suprimo esta salida por el exceso de salida en el log
         #for r in lista_ips:

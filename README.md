@@ -80,3 +80,5 @@ y también explicadas en el doc del principio del código de *main.py*
 * Cambiado el sistema crontab: monitorizo el access.log cada minuto. Si hay cambios, procede a analizar el fichero para descubrir las IPs de los malos. Caso de que haya novedades, actualizo el fichero blockips.conf y reinicio el servidor Nginx.
 ### 2022-04-05
 * Cambio en logic.py para bloquear por url en vez de por 404
+### 2024-02-22
+* Cambio en logic.py para volver a incluir los 4xx, a raíz del envío de 7000 peticiones en 2 horas por parte de una máquina probando urls chungas. Con el cambio, 50 errores 4xx conllevan bloqueo.
