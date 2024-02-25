@@ -24,7 +24,8 @@ import os.path
 import time
 import datetime
 import gzip
-import prettytable
+from typing import Dict, Iterable, List, Tuple
+import prettytable # type: ignore
 
 ## Gestión del menú interactivo (basado en el fichero menu.yaml) ----
 import menu
@@ -198,7 +199,7 @@ class Setup:
             return filter(func_filtro, log_files)
         ## ··································································
         ## ------------------------------------------------------------------
-        def __get_file_lines(f: str) -> list:
+        def __get_file_lines(f: str) -> Iterable[str]:
             """ Es un iterador que devuelve una línea cada vez.
                 Resuelve el tema de los ficheros comprimidos
                 """
@@ -212,7 +213,7 @@ class Setup:
                         yield line 
         ## ··································································
         ## ------------------------------------------------------------------
-        def __tratamiento_linea(i: int, L: str) -> 'tuple(dict, list)':
+        def __tratamiento_linea(i: int, L: str) -> Tuple[Dict[str, str], List[str]]:
             """ Para cada línea, hace la captura de campos vía patrones regex
                 y devuelve un diccionario con todos ellos y una lista de líneas
                 erróneas.
