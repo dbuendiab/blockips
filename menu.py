@@ -22,7 +22,7 @@ class Menu:
 
 
     def recargar_yaml(self):
-        import yaml
+        import yaml  # type: ignore
         with open("menu.yaml", "rt") as fp:
             self.__sql_frases = yaml.safe_load(fp)
         self.__comandos = [str(x['clave']) for x in self.__sql_frases]
