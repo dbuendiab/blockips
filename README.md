@@ -82,3 +82,5 @@ y también explicadas en el doc del principio del código de *main.py*
 * Cambio en logic.py para bloquear por url en vez de por 404
 ### 2024-02-22
 * Cambio en logic.py para volver a incluir los 4xx, a raíz del envío de 7000 peticiones en 2 horas por parte de una máquina probando urls chungas. Con el cambio, 50 errores 4xx conllevan bloqueo.
+### 2024-03-07
+* Cambio en opción 3 de menu.yaml para incluir el número de peticiones 4xx y la opción blocked
