@@ -69,18 +69,30 @@ y también explicadas en el doc del principio del código de *main.py*
 
 ## HISTORIAL MODIFICACIONES
 
-### 2020-11-27
-* Cambio cadenas patrón añadiendo 'r' de raw para que no siga saliendo el error de todos los backslash en la expresión regular. La gracia es que sigue funcionando igual, pero ahora sin errores.
+### 2024-03-25
+* Paso a borrar blockips.log semanalmente, para poder detectar qué pasó en casos como el de las 9000 peticiones no interceptadas. Sin el log no es posible saber nada al respecto. Con el log, ya veremos. Para que un crontab se ejecute el domingo, hay que poner el 5º campo a 0:
+```
+    # Paso a borrar el log semanalmente
+    # El 0 en el 5º campo representa el DOMINGO
+    55 23 * * 0 rm /home/clouding/blockips/blockips.log
+```
+
+### 2024-03-07
+* Cambio en opción 3 de menu.yaml para incluir el número de peticiones 4xx
+
+
+### 2024-02-22
+* Cambio en logic.py para volver a incluir los 4xx, a raíz del envío de 7000 peticiones en 2 horas por parte de una máquina probando urls chungas. Con el cambio, 50 errores 4xx conllevan bloqueo.
+
+### 2022-04-05
+* Cambio en logic.py para bloquear por url en vez de por 404
+
+### 2020-12-02
+* Cambiado el sistema crontab: monitorizo el access.log cada minuto. Si hay cambios, procede a analizar el fichero para descubrir las IPs de los malos. Caso de que haya novedades, actualizo el fichero blockips.conf y reinicio el servidor Nginx
+
+### 2020-11-30
+* Añadir la opción params a las consultas vía YAML.
+
 ### 2020-11-29
 * Carga de los datos de IPs bloqueadas del fichero blockips.conf a la tabla blocked de la base de datos.
 * Añadidos los ficheros independientes para gestión del menú.
-### 2020-11-30
-* Añadir la opción **params** a las consultas vía YAML. 
-### 2020-12-02
-* Cambiado el sistema crontab: monitorizo el access.log cada minuto. Si hay cambios, procede a analizar el fichero para descubrir las IPs de los malos. Caso de que haya novedades, actualizo el fichero blockips.conf y reinicio el servidor Nginx.
-### 2022-04-05
-* Cambio en logic.py para bloquear por url en vez de por 404
-### 2024-02-22
-* Cambio en logic.py para volver a incluir los 4xx, a raíz del envío de 7000 peticiones en 2 horas por parte de una máquina probando urls chungas. Con el cambio, 50 errores 4xx conllevan bloqueo.
-### 2024-03-07
-* Cambio en opción 3 de menu.yaml para incluir el número de peticiones 4xx y la opción blocked
